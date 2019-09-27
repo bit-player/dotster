@@ -1,0 +1,253 @@
+
+h2 {
+	font-size: 16pt;
+	text-align: center;
+}
+
+div.zf {
+	position: relative;
+	width: 640px;
+	margin-top: 0px;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 20px;
+}
+
+div.canvas-failure {
+	width: 640px;
+	height: 640px;
+	color: #733;
+	background-color: #f3f3f3;
+	font-family: sans-serif;
+	display: flex;
+	align-items: center;
+	font-size: 1.8em;
+	line-height: 2em;
+}
+
+div.canvas-failure p {
+	padding: 70px;
+	text-align: center;
+	animation: fadein 5s;
+}
+
+/* Delay to avoid FOUC */
+@keyframes fadein {
+	0%   {opacity: 0;}
+	60%  {opacity: 0;}
+	100% {opacity: 1;}
+}
+
+.zf > canvas {
+	background-color: #fff;
+	border-style: solid;
+	border-width: 1px;
+	border-color: #959595;
+}
+
+.zf.one-d > canvas {
+	margin-bottom: 10px;
+	margin-top: 0px;
+}
+
+.zf .finished > canvas {
+	background-color: #fff;
+	border-style: solid;
+	border-width: 3px;
+	border-color:	#ff2255;
+}
+
+.zf div.controls {
+	position: relative;
+	background-color: #fff;
+	width: 640px;
+	height: 140px;
+	margin-left: auto;
+	margin-right: auto;
+	border: 1px solid #959595;
+	font-family: "Helvetica Neue", Helvetica, Verdana, sans-serif;
+	font-size: 14px;
+	line-height: 20px;
+}
+
+div#demo.zf {
+	margin-top: 10px;
+}
+
+div#demo.zf > div.controls {
+	display: none;
+}
+
+#content h2.zf {
+	margin-top: 10px;
+	margin-bottom: 0px;
+}
+
+.zf .akformula {
+	width: 200px;
+	height: 30px;
+	position: absolute;
+	top: -3px;
+	left: 350px;
+	text-align: left;
+}
+
+.zf .aboxformula {
+	width:	200px;
+	height: 30px;
+	position: absolute;
+	top: 50px;
+	left: 350px;
+	line-height: 20px;
+}
+
+.zf .zeta-readout-text {
+	position: relative;
+	text-align: center;
+/* 	margin-left: 10px; */
+}
+
+.zf .controls button {
+	width: 75px;
+	height: 20px;
+}
+
+.zf button.go-stop-button {
+	position: absolute;
+	top: 10px;
+	right: 15px;
+}
+
+.zf button.reset-button {
+	position: absolute;
+	top: 40px;
+	right: 15px;
+}
+
+.zf .button-labels {
+	position: absolute;
+	top: 0px;
+}
+
+.zf #status-div {
+	width: 75px;
+	height: 20px;
+	position: absolute;
+	top: 80px;
+	right: 15px;
+	text-align: center;
+	background-color: #f3f3f3;
+	border: 1px solid #fff;
+	line-height: 20px;
+}
+
+@keyframes throb {
+	0%   {border-color: #fff;}
+	100% {border-color: #888;}
+}
+
+.zf #status-div.Jammed {
+	background-color: #ff8f8e;
+}
+
+.zf #status-div.Exhausted {
+	background-color: #7dd28e;
+}
+
+.zf #status-div.Running {
+	animation-name: throb;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+	animation-direction: alternate;
+	animation-timing-function: linear;
+}
+
+.zf .counter-div {
+	width:	214px;
+	height: 20px;
+	background-color: #f3f3f3;
+	position: absolute;
+	top: 110px;
+	right: 15px;
+	line-height: 20px;
+}
+
+.zf .counter-number {
+	float: left;
+	width: 57px;
+	text-align: right;
+}
+
+.zf .counter-label {
+	position: relative;
+	text-align: left;
+	float: left;
+	margin-left: 10px;
+}
+
+.zf .sliderbox {
+	margin-top: 30px;
+}
+
+.zf div.slider-wrapper {
+	width: 300px;
+	margin-left: 15px;
+	margin-top: 30px;
+}
+
+.zf div.slider {
+	display: block;
+	width: 300px;	
+	position: relative;
+	margin-top: 10px;
+	margin-left: 0px;
+}
+
+.zf .slider-label {
+	display: block;
+	text-align: center;
+	margin-top: 3px;
+}
+
+.zf .bumper-counter-div {
+	width:	360px;
+	height: 20px;
+	position: absolute;
+	top: 110px;
+	left: 10px;
+	line-height: 20px;
+	color: white;
+	display: flex;
+	justify-content: space-around;
+}
+
+.zf .bumper-counter {
+	width: 30%;
+	padding-left: 5px;
+}
+
+.zf #bumper-counter-blue {
+	background-color: rgb(8, 0, 255);
+}
+
+.zf #bumper-counter-orange {
+	background-color: rgb(255, 85, 17);
+}
+
+.zf #bumper-counter-black {
+	background-color: rgb(34, 34, 34);
+}
+
+.zf .gasket-counter-div {
+	width:	380px;
+	height: 40px;
+	position: absolute;
+	top: 90px;
+	left: 10px;
+	line-height: 20px;
+	background-color: #f3f3f3;
+	color: black;
+	display: flex;
+	justify-content: space-around;
+	flex-wrap: wrap;
+}
