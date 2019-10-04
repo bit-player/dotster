@@ -188,7 +188,7 @@ function injectStyles() {
 	const sliderStyleLink = document.createElement("link");
 	sliderStyleLink.setAttribute("rel", "stylesheet");
   sliderStyleLink.setAttribute("type", "text/css");
-  sliderStyleLink.setAttribute("href", "nouislider.css");	// replace with local URL
+  sliderStyleLink.setAttribute("href", "nouislider.css");			// replace with local URL
 	head.appendChild(sliderStyleLink);
 }
 
@@ -281,7 +281,11 @@ const Dotster = function(options) {
   // efficiency of testing for overlaps. This constant defines the
   // size of the grid. (32 rows x 32 cols = 1024 cells)
   
-  this.cellRowsCols = 32;
+  // Update 2019-10-04: changed to 20 rather than 32. For most
+  // programs seems to offer a better balance. Ought to figure out
+  // what's optimum.
+  
+  this.cellRowsCols = 20;
   
   // Some execution limits.
   // Stop the program is diskCount reaches 100,000.
@@ -351,9 +355,27 @@ const Dotster = function(options) {
  		// coordinates of the disk center. Here we're just building
  		// the empty structure.
  		
+ 		// Note 2019-10-04: Fixed two bugs in one line! Earlier
+ 		// version read this.bigLimit = 1 / this.cellRowsCols.
+ 		// The variable sets the boundary between disks they go
+ 		// into the global bigDisk list and those stored in local
+ 		// square cells, which allows us to confine checks for
+ 		// overlaps to neighboring cells. This works only if 
+ 		// the diameter of a database disk is no greater than 
+ 		// the width of a cell. But without the factor of 1/2
+ 		// we were allowing disks with a *radius* equal to the
+ 		// cell size. As a result, some disk overlaps were not
+ 		// eliminated.
+ 		
+ 		// The second bug was using 1 in the numerator. As long
+ 		// as boxSide is greater than 1, this had the effect of
+ 		// obscuring the first bug, keeping some disks in the
+ 		// bigDisk category that didn't need to be there. But
+ 		// if boxSide is less than 1, overlaps appear.
+ 		
  		this.buildDiskDatabase = function() {
 	 		this.diskList = [];
-			this.bigLimit = 1 / this.cellRowsCols;
+			this.bigLimit = (this.boxSide / this.cellRowsCols) / 2;			// Note 2019-10-04
 			this.bigDisks = [];
 			this.diskData = new Array(this.cellRowsCols);
 			for (let i = 0 ; i < this.cellRowsCols ; i++) {
@@ -457,7 +479,7 @@ const Dotster = function(options) {
 			}
 			return true;			// no overlaps with any of the tested disks
 		}
-		
+				
 		// Here, finally, we actually draw the disk to the screen -- specifically
 		// to the 2d context of a canvas element.
 		
@@ -468,7 +490,60 @@ const Dotster = function(options) {
 			this.ctx.arc(disk.x, disk.y, disk.r, 0, twoPi, true);
 			this.ctx.fill();
 		}
+		
+		// Four functions for debugging purposes only: Draw the database cells to make
+		// sure they properly tile the box, desaturate the bigDisks so we can see which
+		// are which; recolor all the dots in a specified cell; make a pass through the
+		// n(n-1)/2 pairs of disks to verify there are no overlaps.
+		
+		this.drawCells = function(color) {
+			this.ctx.strokeStyle = color;
+			this.ctx.lineWidth = 0.001;
+			const cellPitch = this.boxSide / this.cellRowsCols;
+			for (let x = 0; x < this.boxSide ; x += cellPitch) {
+				for (let y = 0; y < this.boxSide ; y += cellPitch) {
+					this.ctx.strokeRect(x, y, cellPitch, cellPitch);
+				}
+			}
+		}
+		
+		this.fadeBigDisks = function() {
+			let oldDiskColor = this.diskColor;
+			this.diskColor = "#ddd";
+			for (let d of this.bigDisks) {
+				this.drawDisk(d);
+			}
+			this.diskColor = oldDiskColor;
+		}
+		
+		this.drawDotsInCell = function(cellX, cellY, color) {
+			this.diskColor = color;
+			cell = this.diskData[cellX][cellY];
+			for (let d of cell) {
+				this.drawDisk(d);
+			}			
+		}
+		
+		this.verifyNoOverlaps = function() {
+			const len = this.diskList.length;
+			let overlapCount = 0;
+			for (let i = 0; i < len; i++) {
+				for (let j = 0; j < len; j++) {
+					if (i != j) {
+						if (this.disksOverlap(this.diskList[i], this.diskList[j])) {
+							console.log(`overlap: ${this.diskList[i]}, ${this.diskList[j]}`);
+							overlapCount++;
+						}
+					}
+				}
+			}
+			console.log(`number of overlapping pairs: ${overlapCount}`);
+		}
+		
 	}
+	
+	
+	
 
 
   // ONE DIMENSION   All the same procedures with the same
@@ -550,7 +625,7 @@ const Dotster = function(options) {
 	}
 }
 	
-// END OF CONSTRUCTOR FOR MAKER OBJECTS
+// END OF CONSTRUCTOR FOR DOTSTER OBJECTS
 
 // Now add some more functionality:
 
@@ -1495,6 +1570,8 @@ hw.init = function() {
 hw.init();
 
 
+
+
 // PROGRAM 7: ONE-DIMENSIONAL DISKS
 
 const d1 = new Dotster({dimension: 1, runButton: "goStop", bumpers: "no", initial_k: 1});
@@ -1778,7 +1855,6 @@ bm.countPixels = function() {
 
 bm.drawGasket = function() {
 	const innerSquareSideLength = Math.max(bm.boxSide - (2 * bm.nextRadius), 0);
-// 	console.log(`bm.boxSide: ${bm.boxSide},  bm.nextRadius: ${bm.nextRadius},  innerSquareSideLength: ${innerSquareSideLength}`);
 	bm.ctx.fillStyle = bm.gasketColor;
 	bm.ctx.fillRect(0, 0, bm.boxSide, bm.boxSide);
 	bm.ctx.fillStyle = bm.bufferColor;
