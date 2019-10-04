@@ -52,7 +52,7 @@
 // declarations. (I.e., function f() {...} is globally visible
 // whereas const f = function() {...} is not.
 
-{
+// {
 
 
 // Check for browser ability to handle 'canvas' element. 
@@ -281,7 +281,7 @@ const Dotster = function(options) {
   // efficiency of testing for overlaps. This constant defines the
   // size of the grid. (32 rows x 32 cols = 1024 cells)
   
-  this.cellRowsCols = 32;
+  this.cellRowsCols = 20;
   
   // Some execution limits.
   // Stop the program is diskCount reaches 100,000.
@@ -353,7 +353,9 @@ const Dotster = function(options) {
  		
  		this.buildDiskDatabase = function() {
 	 		this.diskList = [];
-			this.bigLimit = 1 / this.cellRowsCols;
+			this.bigLimit = (this.boxSide / this.cellRowsCols) / 2;
+// 			this.bigLimit = 1 / this.cellRowsCols;
+			console.log(`ID=${this.ID}  boxSide=${this.boxSide}  bigLimit=${this.bigLimit}  boxSide/32=${this.boxSide/32}`);
 			this.bigDisks = [];
 			this.diskData = new Array(this.cellRowsCols);
 			for (let i = 0 ; i < this.cellRowsCols ; i++) {
@@ -395,6 +397,7 @@ const Dotster = function(options) {
 	  this.recordDisk = function(d) {
 			this.diskList.push(d);
 			if (d.r >= this.bigLimit) {
+// 				console.log(d.r, this.bigLimit);
 				this.bigDisks.push(d);
 			}
 			else {
@@ -437,6 +440,7 @@ const Dotster = function(options) {
 			}
 			const cellX = this.coordToIndex(disk.x);
 			const cellY = this.coordToIndex(disk.y);
+// 			console.log(`disk.x = ${disk.x}  cellX = ${cellX}  disk.y = ${disk.y}  cellY = ${cellY}`);
 			for (let xOffset = -1 ; xOffset <= 1 ; xOffset++) {
 					let x = cellX + xOffset;
 					if (x < 0 || x >= this.cellRowsCols) {
@@ -458,6 +462,17 @@ const Dotster = function(options) {
 			return true;			// no overlaps with any of the tested disks
 		}
 		
+/*
+		this.isNotOverlapping = function(disk) {
+			for (const d of this.diskList) {
+				if (this.disksOverlap(disk, d)) {
+					return false;		// intersects at least one big disk
+				}
+			}
+			return true;			// no overlaps with any of the tested disks
+		}
+*/
+		
 		// Here, finally, we actually draw the disk to the screen -- specifically
 		// to the 2d context of a canvas element.
 		
@@ -468,7 +483,58 @@ const Dotster = function(options) {
 			this.ctx.arc(disk.x, disk.y, disk.r, 0, twoPi, true);
 			this.ctx.fill();
 		}
+		
+		// For debugging purposes only: Draw the database cells to make
+		// sure they properly tile the box.
+		
+		this.drawCells = function(color) {
+			this.ctx.strokeStyle = color;
+			this.ctx.lineWidth = 0.001;
+			const cellPitch = this.boxSide / this.cellRowsCols;
+			for (let x = 0; x < this.boxSide ; x += cellPitch) {
+				for (let y = 0; y < this.boxSide ; y += cellPitch) {
+					this.ctx.strokeRect(x, y, cellPitch, cellPitch);
+				}
+			}
+		}
+		
+		this.fadeBigDisks = function() {
+			let oldDiskColor = this.diskColor;
+			this.diskColor = "#ddd";
+			for (let d of this.bigDisks) {
+				this.drawDisk(d);
+			}
+			this.diskColor = oldDiskColor;
+		}
+		
+		this.drawDotsInCell = function(cellX, cellY, color) {
+			this.diskColor = color;
+			cell = this.diskData[cellX][cellY];
+			for (let d of cell) {
+				this.drawDisk(d);
+			}			
+		}
+		
+		this.verifyNoOverlaps = function() {
+			const len = this.diskList.length;
+			let overlapCount = 0;
+			for (let i = 0; i < len; i++) {
+				for (let j = 0; j < len; j++) {
+					if (i != j) {
+						if (this.disksOverlap(this.diskList[i], this.diskList[j])) {
+							console.log(`overlap: ${this.diskList[i]}, ${this.diskList[j]}`);
+							overlapCount++;
+						}
+					}
+				}
+			}
+			console.log(`number of overlapping pairs: ${overlapCount}`);
+		}
+		
 	}
+	
+	
+	
 
 
   // ONE DIMENSION   All the same procedures with the same
@@ -550,7 +616,7 @@ const Dotster = function(options) {
 	}
 }
 	
-// END OF CONSTRUCTOR FOR MAKER OBJECTS
+// END OF CONSTRUCTOR FOR DOTSTER OBJECTS
 
 // Now add some more functionality:
 
@@ -1494,6 +1560,33 @@ hw.init = function() {
 
 hw.init();
 
+var hw_export_disklist = function() {
+	return hw.diskList;
+}
+
+var hw_replay = function(xyrArray) {
+	hw.resetClick();
+	for (const d of xyrArray) {
+			hw.recordDisk(d);
+			hw.drawDisk(d);
+			hw.diskCount++;
+			hw.diskArea = hw.areaFromRadius(d.r);
+			hw.areaCovered += hw.diskArea;
+			hw.percentCovered = hw.areaCovered / hw.boxArea * 100;
+			hw.countNumber.innerHTML = hw.diskCount;
+			hw.areaNumber.innerHTML = hw.percentCovered.toFixed(2) + "%";
+			hw.k++;
+			hw.diskArea = hw.areaFromK(hw.k);
+			hw.diskRadius = hw.radiusFromArea(hw.diskArea);
+			hw.diskColor = hw.colorFn(hw.diskArea);
+	}
+	hw.state = "Paused";
+	hw.UIstateUpdate();
+}
+
+
+
+
 
 // PROGRAM 7: ONE-DIMENSIONAL DISKS
 
@@ -2334,5 +2427,5 @@ jamstats.run = function(s, trials) {
 	console.log(`s: ${s},  trials: ${trials},  counts: ${counts}`);
 }
 
-} // DO NOT REMOVE THIS CURLY BRACE ; IT TERMINATES THE BLOCK THAT ENCLOSES THE PROGRAM
+// } // DO NOT REMOVE THIS CURLY BRACE ; IT TERMINATES THE BLOCK THAT ENCLOSES THE PROGRAM
 
