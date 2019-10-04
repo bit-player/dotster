@@ -1569,31 +1569,6 @@ hw.init = function() {
 
 hw.init();
 
-var hw_export_disklist = function() {
-	return hw.diskList;
-}
-
-var hw_replay = function(xyrArray) {
-	hw.resetClick();
-	for (const d of xyrArray) {
-			hw.recordDisk(d);
-			hw.drawDisk(d);
-			hw.diskCount++;
-			hw.diskArea = hw.areaFromRadius(d.r);
-			hw.areaCovered += hw.diskArea;
-			hw.percentCovered = hw.areaCovered / hw.boxArea * 100;
-			hw.countNumber.innerHTML = hw.diskCount;
-			hw.areaNumber.innerHTML = hw.percentCovered.toFixed(2) + "%";
-			hw.k++;
-			hw.diskArea = hw.areaFromK(hw.k);
-			hw.diskRadius = hw.radiusFromArea(hw.diskArea);
-			hw.diskColor = hw.colorFn(hw.diskArea);
-	}
-	hw.state = "Paused";
-	hw.UIstateUpdate();
-}
-
-
 
 
 
