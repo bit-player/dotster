@@ -183,12 +183,12 @@ function injectStyles() {
 	const zetaStyleLink = document.createElement("link");
 	zetaStyleLink.setAttribute("rel", "stylesheet");
   zetaStyleLink.setAttribute("type", "text/css");
-  zetaStyleLink.setAttribute("href", "wp-zeta-styles.css");		// replace with local URL
+  zetaStyleLink.setAttribute("href", "/extras/zeta/wp-zeta-styles.css");		// replace with local URL
 	head.appendChild(zetaStyleLink);
 	const sliderStyleLink = document.createElement("link");
 	sliderStyleLink.setAttribute("rel", "stylesheet");
   sliderStyleLink.setAttribute("type", "text/css");
-  sliderStyleLink.setAttribute("href", "nouislider.css");			// replace with local URL
+  sliderStyleLink.setAttribute("href", "/extras/zeta/nouislider.css");			// replace with local URL
 	head.appendChild(sliderStyleLink);
 }
 
