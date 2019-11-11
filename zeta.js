@@ -288,7 +288,7 @@ const Dotster = function(options) {
   this.cellRowsCols = 20;
   
   // Some execution limits.
-  // Stop the program is diskCount reaches 100,000.
+  // Stop the program if diskCount reaches 100,000.
   
   this.maxDisks = 100000;
   
@@ -298,9 +298,20 @@ const Dotster = function(options) {
   
   // When trying to find a place for a disk, stop after 10^7 attempts.
   // This default is overridden below with a value based on the size
-  // of a pixel.
+  // of a pixel. Note 2019-11-11: This variable is no longer referenced.
+  // Its function is fulfilled by the batchSize and maxBatches constants
+  // below. 
   
   this.maxAttempts = 1e7;
+  
+	// To avoid stalling the UI for long periods, we run the search for
+	// a new disk site in batches. After each batch, we take a breather to
+	// allow other tasks a chance (including drawing to the screen).
+  
+  this.batchSize = 10000;
+  this.maxBatches = 1000;
+  this.batchCount = 0;
+  
   
   // Produce a random x or y as a possible center point for the next
   // disk. Math.random() returns a 64-bit float in [0, 1).
@@ -392,13 +403,13 @@ const Dotster = function(options) {
 		// repeatedly try to find an xy location where you can put it,
 		// for each trial checking for overlaps with the box boundaries
 		// and all the previous disks. On success, return the Disk; after
-		// maxAttempts, give up and return false.
+		// 'batchSize' tries, give up and return false.
 		
 		this.newDisk = function() {
 			let d = new Disk();
 			d.r = this.diskRadius;
 			let attempt = 1;
-			while (attempt <= this.maxAttempts) {
+			while (attempt <= this.batchSize) {
 				d.x = this.randomCoord();
 				d.y = this.randomCoord();
 				if (this.isInBounds(d) && this.isNotOverlapping(d)) {
@@ -608,7 +619,7 @@ const Dotster = function(options) {
 			d.r = this.diskRadius;
 			d.y = 0;
 			let attempt = 1;
-			while (attempt <= this.maxAttempts) {
+			while (attempt <= this.batchSize) {
 				d.x = this.randomCoord();
 				if (this.isInBounds(d) && this.isNotOverlapping(d)) {
 					return d;
@@ -877,15 +888,6 @@ Dotster.prototype.drawGasket = function() {
 // the disk and update various state variables.
 
 Dotster.prototype.doOneDisk = function() {
-	const d = this.newDisk();
-	if (!d) {																							// no room at the inn
-		this.state = "Jammed";
-		if (this.runButton === "goStop") {
-			this.stopTimer();
-		}
-		this.UIstateUpdate();
-		return false;
-	}
 	
 	if (this.diskCount >= this.maxDisks || this.diskArea < this.minDiskArea) {		// patience exhausted
 		this.state = "Exhausted";
@@ -893,6 +895,32 @@ Dotster.prototype.doOneDisk = function() {
 			this.stopTimer();
 		}
 		this.UIstateUpdate();
+		this.batchCount = 0;
+		return false;
+	}
+	
+	if (this.batchCount >= this.maxBatches) {			// declare the search a failure; no room for another disk
+		this.state = "Jammed";
+		if (this.runButton === "goStop") {
+			this.stopTimer();
+		}
+		this.UIstateUpdate();
+		this.batchCount = 0;
+		return false;
+	}
+	
+	// We have not reached either of the search limits, so let's try another
+	// batch of attempts to place a new disk.	The var d will hold the result
+	// of the search: a disk object if we succeeded in finding a place, and
+	// otherwise false.
+	
+	this.batchCount += 1;
+	const d = this.newDisk();
+	
+	// If d == false, just bail out, and let this whole routine run again
+	// on the next timer tick.
+	
+	if (!d) {
 		return false;
 	}
 	
@@ -913,12 +941,13 @@ Dotster.prototype.doOneDisk = function() {
 	// This is the point in the program where we are officially finished
 	// with one disk and ready to turn our attention to the next. We 
 	// increment the index k, then calculate the area, radius, and color
-	// of the next disk to be placed. 
+	// of the next disk to be placed. And reset the batchCount.
 	
 	this.k++;
 	this.diskArea = this.areaFromK(this.k);
 	this.diskRadius = this.radiusFromArea(this.diskArea);
 	this.diskColor = this.colorFn(this.diskArea);
+	this.batchCount = 0;
 	return true;
 }
 
@@ -2078,15 +2107,6 @@ gk.setUpCounters();
 gk.init();
 
 gk.doOneDisk = function() {
-	const d = gk.newDisk();
-	if (!d) {																							// no room at the inn
-		gk.state = "Jammed";
-		if (gk.runButton === "goStop") {
-			gk.stopTimer();
-		}
-		gk.UIstateUpdate();
-		return false;
-	}
 	
 	if (gk.diskCount >= gk.maxDisks || gk.diskArea < gk.minDiskArea) {		// patience exhausted
 		gk.state = "Exhausted";
@@ -2094,8 +2114,39 @@ gk.doOneDisk = function() {
 			gk.stopTimer();
 		}
 		gk.UIstateUpdate();
+		gk.batchCount = 0;
 		return false;
 	}
+	
+	if (gk.batchCount >= gk.maxBatches) {			// declare the search a failure; no room for another disk
+		gk.state = "Jammed";
+		if (gk.runButton === "goStop") {
+			gk.stopTimer();
+		}
+		gk.UIstateUpdate();
+		gk.batchCount = 0;
+		return false;
+	}
+		
+	// We have not reached either of the search limits, so let's try another
+	// batch of attempts to place a new disk.	The var d will hold the result
+	// of the search: a disk object if we succeeded in finding a place, and
+	// otherwise false.
+	
+	gk.batchCount += 1;
+	const d = gk.newDisk();
+	
+	// If d == false, just bail out, and let this whole routine run again
+	// on the next timer tick.
+	
+	if (!d) {
+		return false;
+	}
+	
+	// If we've gotten this far, we have a disk and the disk has a home.
+	// So we record it in the database and draw it on the screen. Then
+	// update variables that keep track of the count of disks, and their
+	// total area, and display these results in the control panel.
 	
 	gk.recordDisk(d);										// success...
 	gk.drawDisk(d);
@@ -2110,10 +2161,16 @@ gk.doOneDisk = function() {
 	gk.gasketPerimeter += (gk.diskRadius * Math.PI * 2);
 	gk.gasketWidth = gk.gasketArea / gk.gasketPerimeter;
 	
+	// This is the point in the program where we are officially finished
+	// with one disk and ready to turn our attention to the next. We 
+	// increment the index k, then calculate the area, radius, and color
+	// of the next disk to be placed. And reset the batchCount.
+	
 	gk.k++;
 	gk.diskArea = gk.areaFromK(gk.k);
 	gk.diskRadius = gk.radiusFromArea(gk.diskArea);
 	gk.diskColor = gk.colorFn(gk.diskArea);
+	gk.batchCount = 0;
 
 	gk.dimensionlessWidth = gk.gasketWidth / (gk.diskRadius * 2);
 	gk.AgCounterText.innerHTML = `gasket area: ${gk.gasketArea.toFixed(2)}`;
@@ -2123,6 +2180,9 @@ gk.doOneDisk = function() {
 
 	return true;
 }
+
+	
+	
 
 
 // PROGRAM 11: DISK AREAS BASED ON THE GEOMETRIC SERIES
