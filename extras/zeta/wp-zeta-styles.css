@@ -167,7 +167,7 @@ div#demo.zf > div.controls {
 	height: 20px;
 	background-color: #f3f3f3;
 	position: absolute;
-	top: 110px;
+	bottom: 12px;
 	right: 15px;
 	line-height: 20px;
 }
@@ -213,7 +213,7 @@ div#demo.zf > div.controls {
 	width:	360px;
 	height: 20px;
 	position: absolute;
-	top: 110px;
+	bottom: 12px;
 	left: 10px;
 	line-height: 20px;
 	color: white;
