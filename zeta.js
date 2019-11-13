@@ -1983,7 +1983,6 @@ bm.init = function() {
 
 bm.init();
 
-
 // No screen interface to these functions;
 // they have to be called from the console.
 
@@ -2010,6 +2009,175 @@ var bm_cornerDisk = function() {
 	bm.percentCovered = (bm.areaCovered / bm.boxArea) * 100;
 	bm.countPixels();	
 }
+
+
+
+
+// PROGRAM 9a: TWO-DIMENSIONAL DISKS WITH ORANGE BUFFERS (HURWITZ)
+
+// This is a variant of Program 9, using the Hurwitz instead of
+// the Riemann zeta function. By special request of John Shier.
+
+const bH = new Dotster({dimension: 2, runButton: "next", bumpers: "yes", initial_k: 0});
+
+bH.setUpDOM("bumpers2dHurwitz");
+
+bH.areaFromK = function(k) {
+	return 1 / Math.pow(bH.a + k, bH.s);
+}
+
+bH.diskColor = "#0800ff";				// blue
+bH.gasketColor = "#333";				// dark gray
+bH.bufferColor = "rgba(255, 85, 17, 0.7)";			// semitransparent orange
+
+bH.makeSlider(1.30, 1.00, 3.00, "s (exponent)", "sSlider");
+
+bH.makeSlider(1.0, 1.0, 10.0, "a (offset)", "aSlider");
+
+bH.sSlider.noUiSlider.on("change", function() {
+	bH.resetClick();
+});
+
+bH.aSlider.noUiSlider.on("change", function() {
+	bH.resetClick();
+});
+
+bH.countPixels = function() {
+	const imageData = bH.ctx.getImageData(0, 0, bH.plotsize, bH.plotsize);		// capture the pixel array
+	const pixelcount = square(bH.plotsize);
+
+// 	color blu = [  8,   0, 255];
+// 	color org = [255,  85,  17];
+// 	color blk = [ 34,  34,  34];
+
+	let bluCt = 0,
+			orgCt = 0,
+			blkCt = 0;
+
+	for (let i = 0; i < (pixelcount * 4); i += 4) {		// each pixel is 4-byte RGBA value
+		
+		let r = imageData.data[i], b = imageData.data[i + 2];
+		if 			(b > 127) { bluCt++; }
+		else if (r > 127) { orgCt++; }
+		else 							{ blkCt++; }
+
+	}
+	bH.blueCounterText.innerHTML = `Disks: ${(100 * bluCt / pixelcount).toFixed(2)}%`;
+	bH.orangeCounterText.innerHTML = `Buffers: ${(100 * orgCt / pixelcount).toFixed(2)}%`;
+	bH.blackCounterText.innerHTML = `Open: ${(100 * blkCt / pixelcount).toFixed(2)}%`;
+}
+
+bH.drawGasket = function() {
+	const innerSquareSideLength = Math.max(bH.boxSide - (2 * bH.nextRadius), 0);
+	bH.ctx.fillStyle = bH.gasketColor;
+	bH.ctx.fillRect(0, 0, bH.boxSide, bH.boxSide);
+	bH.ctx.fillStyle = bH.bufferColor;
+	bH.ctx.fillRect(0, 0, bH.boxSide, bH.boxSide);
+	bH.ctx.fillStyle = bH.gasketColor;
+	bH.ctx.fillRect(bH.nextRadius,
+								  bH.nextRadius, 
+								  innerSquareSideLength, 
+								  innerSquareSideLength);
+}
+
+bH.drawBuffer = function(disk) {
+	const bufferRadius = disk.r + bH.nextRadius;
+	bH.ctx.beginPath();
+	bH.ctx.moveTo(disk.x, disk.y);
+	bH.ctx.arc(disk.x, disk.y, bufferRadius, 0, twoPi, true);
+	bH.ctx.fillStyle = bH.bufferColor;
+	bH.ctx.fill();
+}
+
+bH.redraw = function() {
+	bH.drawGasket();
+	for (const d of bH.diskList) {
+		bH.drawBuffer(d);
+	}
+	for (const d of bH.diskList) {
+		bH.drawDisk(d);
+	}
+}
+
+// Again we need to replace the prototype version of doOneDisk. 
+// Partly to get in the countPixels() routine. But also because
+// I wanted to allow s = 1 in this program, where the zeta series
+// is nonconvergent. We need to handle the case of zeta(s) -> infinity.
+// This also comes up in init().
+
+bH.doOneDisk = function() {
+	if (!isFinite(bH.zeta)) {
+		bH.state = "Exhausted";
+		bH.UIstateUpdate();
+		return false;		
+	}
+	const d = bH.newDisk();
+	if (!d) {
+		bH.state = "Jammed";
+		bH.UIstateUpdate();
+		return false;
+	}
+	bH.recordDisk(d);
+	bH.redraw();
+	bH.areaCovered += bH.diskArea
+	bH.percentCovered = (bH.areaCovered / bH.boxArea) * 100;
+	bH.countPixels();
+	bH.diskCount++;
+	bH.countNumber.innerHTML = bH.diskCount;
+	bH.areaNumber.innerHTML = bH.percentCovered.toFixed(2) + "%";
+
+	bH.k++;
+	bH.diskArea = bH.areaFromK(bH.k);
+	bH.diskRadius = bH.radiusFromArea(bH.diskArea);
+	bH.nextArea = bH.areaFromK(bH.k + 1);
+	bH.nextRadius = bH.radiusFromArea(bH.nextArea);
+	return true;
+}
+
+bH.init = function() {
+	bH.diskCount = 0;
+	bH.k = bH.initial_k;
+	bH.s = Number(bH.sSlider.noUiSlider.get());
+	bH.a = Number(bH.aSlider.noUiSlider.get());
+	bH.zeta = hurwitzZeta(bH.s, bH.a);;
+	bH.boxArea = bH.zeta;
+	bH.boxSide = Math.sqrt(bH.boxArea);
+	bH.transformCoords();
+	bH.diskArea = bH.areaFromK(bH.initial_k);
+	bH.diskRadius = bH.radiusFromArea(bH.diskArea);
+	bH.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{(${bH.a.toFixed(2)}+k)^{${bH.s.toFixed(2)}}}\\]`;
+	bH.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${bH.s.toFixed(2)}, ${bH.a.toFixed(2)}) = ${bH.zeta.toFixed(2)}\\]`;
+	MathJax.Hub.Queue(["Typeset", MathJax.Hub, bH.controls]);
+	bH.diskArea = bH.areaFromK(bH.initial_k);
+	bH.diskRadius = bH.radiusFromArea(bH.diskArea);
+	bH.buildDiskDatabase();
+
+	if (isFinite(bH.zeta)) {
+		bH.nextArea = bH.diskArea;
+		bH.nextRadius = bH.diskRadius;
+		bH.drawGasket();
+		bH.countPixels();
+		bH.nextArea = bH.areaFromK(bH.k + 1);
+		bH.nextRadius = bH.radiusFromArea(bH.nextArea);
+	}
+	else {
+		bH.boxSide = 1;
+		bH.transformCoords();
+		bH.nextRadius = 0;
+		bH.drawGasket();
+		bH.countPixels();
+	}
+	// With two sliders and the readouts for area counting, the
+	// standard control box is overcrowded. Increase height from
+	// 140 to 175 px.
+	const bHDiv = document.getElementById("bumpers2dHurwitz");
+	const bHcontrols = bHDiv.getElementsByClassName("controls")[0];
+	bHcontrols.style.height = "175px";
+}
+
+bH.init();
+
+
 
 
 // PROGRAM 10: THE GASKET
