@@ -2171,43 +2171,6 @@ bH.colorFn = function(q) {
 }
 
 
-// Again we need to replace the prototype version of doOneDisk. 
-// Partly to get in the countPixels() routine. But also because
-// I wanted to allow s = 1 in this program, where the zeta series
-// is nonconvergent. We need to handle the case of zeta(s) -> infinity.
-// This also comes up in init().
-
-/*
-bH.doOneDisk = function() {
-	if (!isFinite(bH.zeta)) {
-		bH.state = "Exhausted";
-		bH.UIstateUpdate();
-		return false;		
-	}
-	const d = bH.newDisk();
-	if (!d) {
-		bH.state = "Jammed";
-		bH.UIstateUpdate();
-		return false;
-	}
-	bH.recordDisk(d);
-	bH.redraw();
-	bH.areaCovered += bH.diskArea
-	bH.percentCovered = (bH.areaCovered / bH.boxArea) * 100;
-	bH.countPixels();
-	bH.diskCount++;
-	bH.countNumber.innerHTML = bH.diskCount;
-	bH.areaNumber.innerHTML = bH.percentCovered.toFixed(2) + "%";
-
-	bH.k++;
-	bH.diskArea = bH.areaFromK(bH.k);
-	bH.diskRadius = bH.radiusFromArea(bH.diskArea);
-	bH.nextArea = bH.areaFromK(bH.k + 1);
-	bH.nextRadius = bH.radiusFromArea(bH.nextArea);
-	return true;
-}
-*/
-
 bH.init = function() {
 	bH.diskCount = 0;
 	bH.k = bH.initial_k;
