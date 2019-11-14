@@ -2139,6 +2139,8 @@ bH.drawBuffer = function(disk) {
 }
 
 bH.redraw = function() {
+	bH.nextArea = bH.areaFromK(bH.k + 1);
+	bH.nextRadius = bH.radiusFromArea(bH.nextArea);
 	bH.drawGasket();
 	for (const d of bH.diskList) {
 		bH.drawBuffer(d);
@@ -2148,12 +2150,34 @@ bH.redraw = function() {
 	}
 }
 
+
+// replace the default display routine with one that redraws the 
+// entire sequence of disks, with bumpers shown. It also stops
+// the setInterval timer.
+
+bH.displayDisk = function(d) {
+	bH.stopTimer();
+	bH.state = "Idle";
+	bH.UIstateUpdate();
+	bH.redraw();
+	bH.countPixels();
+}
+
+// also replace the default gradient coloring with one that 
+// returns a constant
+
+bH.colorFn = function(q) {
+	return bH.diskColor;
+}
+
+
 // Again we need to replace the prototype version of doOneDisk. 
 // Partly to get in the countPixels() routine. But also because
 // I wanted to allow s = 1 in this program, where the zeta series
 // is nonconvergent. We need to handle the case of zeta(s) -> infinity.
 // This also comes up in init().
 
+/*
 bH.doOneDisk = function() {
 	if (!isFinite(bH.zeta)) {
 		bH.state = "Exhausted";
@@ -2182,6 +2206,7 @@ bH.doOneDisk = function() {
 	bH.nextRadius = bH.radiusFromArea(bH.nextArea);
 	return true;
 }
+*/
 
 bH.init = function() {
 	bH.diskCount = 0;
