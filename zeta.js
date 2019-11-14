@@ -891,9 +891,7 @@ Dotster.prototype.doOneDisk = function() {
 	
 	if (this.diskCount >= this.maxDisks || this.diskArea < this.minDiskArea) {		// patience exhausted
 		this.state = "Exhausted";
-		if (this.runButton === "goStop") {
-			this.stopTimer();
-		}
+		this.stopTimer();
 		this.UIstateUpdate();
 		this.batchCount = 0;
 		return false;
@@ -901,9 +899,7 @@ Dotster.prototype.doOneDisk = function() {
 	
 	if (this.batchCount >= this.maxBatches) {			// declare the search a failure; no room for another disk
 		this.state = "Jammed";
-		if (this.runButton === "goStop") {
-			this.stopTimer();
-		}
+		this.stopTimer();
 		this.UIstateUpdate();
 		this.batchCount = 0;
 		return false;
@@ -925,18 +921,19 @@ Dotster.prototype.doOneDisk = function() {
 	}
 	
 	// If we've gotten this far, we have a disk and the disk has a home.
-	// So we record it in the database and draw it on the screen. Then
-	// update variables that keep track of the count of disks, and their
-	// total area, and display these results in the control panel.
+	// So we record it in the database and update the variables that keep 
+	// track of the count of disks, and their total area. We also call
+	// this.displayDisk(d) to draw it on the screen and this.displayStats()
+	// to update the control-panel tallies. The default implementations
+	// of these routines are given below; some programs override them.
 	
 	this.recordDisk(d);
-	this.drawDisk(d);
 	this.diskCount++;
 	this.diskArea = this.areaFromRadius(d.r);
 	this.areaCovered += this.diskArea;
 	this.percentCovered = this.areaCovered / this.boxArea * 100;
-	this.countNumber.innerHTML = this.diskCount;
-	this.areaNumber.innerHTML = this.percentCovered.toFixed(2) + "%";
+	this.displayDisk(d);
+	this.displayStats();
 	
 	// This is the point in the program where we are officially finished
 	// with one disk and ready to turn our attention to the next. We 
@@ -952,6 +949,24 @@ Dotster.prototype.doOneDisk = function() {
 }
 
 
+// The default implementation of displayDisk simply calls drawDisk.
+// This wrapper is here to make it easier to specialize the function.
+// A program that needs to do other tasks (such as draw buffer rings)
+// can do so and also have access to the default drawDisk function.
+
+Dotster.prototype.displayDisk = function(d) {
+	this.drawDisk(d);
+}
+
+
+// Display the disk count and the aggregate disk area. Almost all of
+// the programs include these statistics. Programs that do more will
+// need to supplement or specialize this procedure.
+
+Dotster.prototype.displayStats = function() {
+	this.countNumber.innerHTML = this.diskCount;
+	this.areaNumber.innerHTML = this.percentCovered.toFixed(2) + "%";
+}
 
 
 // The timer routines are where we start and stop the animated 
@@ -960,6 +975,14 @@ Dotster.prototype.doOneDisk = function() {
 // state it calls stopTimer. In addition, stopTimer is called
 // when doOneDisk detects a "Jammed" or "Exhausted "
 // condition.
+
+// Because of the batch process, the timer must be used even
+// by those programs that place one disk at a time (i.e., those
+// with a "next" button rather than a "go/stop" button). Without
+// setInterval, doOneDisk would run just a single batch of 10000
+// attempts. The timer allows it to restart and run up to
+// 1000 batches. But then we need to be sure to stop the timer
+// once a disk is found.
 
 // Note A: Performance sucks, and the UI bogs down, if we
 // try to run multiple programs at the same time. It's easy
@@ -984,6 +1007,7 @@ Dotster.prototype.doOneDisk = function() {
 
 // Note D: The zero as a second argument to setInterval
 // calls for repeating as fast as possible.
+
 
 Dotster.prototype.startTimer = function() {
 	if (currentlyRunningProgram) {
@@ -1104,8 +1128,33 @@ Dotster.prototype.UIstateUpdate = function() {
 	// button to try again.
 	
 	else if (this.runButton === "next") {
-		if (this.state === "Jammed") {
-			this.statusFlag.classList.add("jammed");
+		switch (this.state) {
+			case "Running":
+				for (const s of this.sliderList) {
+					s.setAttribute("disabled", "disabled");
+				}
+				this.goStopButton.innerHTML = "Cancel";
+				break;
+			case "Idle":
+				for (const s of this.sliderList) {
+					s.removeAttribute("disabled");
+				}
+				this.goStopButton.innerHTML = "Next";
+				break;
+			case "Jammed":
+				for (const s of this.sliderList) {
+					s.removeAttribute("disabled");
+				}
+				this.goStopButton.innerHTML = "Try Harder";
+				this.statusFlag.classList.add("jammed");
+				break;
+			case "Exhausted":
+				for (const s of this.sliderList) {
+					s.removeAttribute("disabled");
+				}
+				this.goStopButton.innerHTML = "Restart";
+				this.statusFlag.classList.add("exhausted");
+				break;
 		}
 	}
 }
@@ -1144,7 +1193,27 @@ Dotster.prototype.goStopClick = function(evt) {
 // For non-timer-driven programs, just do one disk.
 
 Dotster.prototype.nextClick = function(evt) {
-	this.doOneDisk();
+	switch (this.state) {
+		case "Running": 
+			this.state = "Idle";		// pause running program, stop the timer
+			this.stopTimer();
+			break;
+		case "Idle":
+			this.state = "Running";		// start up from idle, start timer
+			this.startTimer();
+			break;
+		case "Jammed":
+			this.batchCount = 0;
+			this.state = "Running";		// from jammed state, do reset and then start timer
+			this.startTimer();
+			break;
+		case "Exhausted":
+			this.batchCount = 0;
+			this.state = "Running";		// likewise from exhausted, start over
+			this.startTimer();
+			break;
+	}
+	this.UIstateUpdate();					// update UI to reflect the new state
 }
 	
 // Event handler for the Reset button. Clear the canvas, redraw
@@ -1770,32 +1839,25 @@ b1.redraw = function() {
 	}
 }
 
-// We need to reimplement doOneDisk in this case in order to include
-// the buffer zones. 
+// replace the default display routine with one that redraws the 
+// entire sequence of disks, with bumpers shown. It also stops
+// the setInterval timer.
 
-b1.doOneDisk = function() {
-	const d = b1.newDisk();
-	if (!d) {
-		b1.state = "Jammed";
-		b1.UIstateUpdate();
-		return false;
-	}
-	b1.recordDisk(d);
+b1.displayDisk = function(d) {
+	b1.stopTimer();
 	b1.redraw();
-	b1.areaCovered += b1.diskArea;
-	b1.percentCovered = (b1.areaCovered / b1.boxArea) * 100;
+	b1.state = "Idle";
+	b1.UIstateUpdate();
 	b1.sumAreas();
-	b1.diskCount++;
-	b1.countNumber.innerHTML = b1.diskCount;
-	b1.areaNumber.innerHTML = b1.percentCovered.toFixed(2) + "%";
-
-	b1.k++
-	b1.diskArea = b1.areaFromK(b1.k);
-	b1.diskRadius = b1.radiusFromArea(b1.diskArea);
-	b1.nextArea = b1.areaFromK(b1.k + 1);
-	b1.nextRadius = b1.radiusFromArea(b1.nextArea);
-	return true;
 }
+
+// also replace the default gradient coloring with one that 
+// returns a constant
+
+b1.colorFn = function(q) {
+	return b1.diskColor;
+}
+
 
 b1.resetClick = function(evt) {
 	b1.state = "Idle";
@@ -1905,6 +1967,8 @@ bm.drawBuffer = function(disk) {
 }
 
 bm.redraw = function() {
+	bm.nextArea = bm.areaFromK(bm.k + 1);
+	bm.nextRadius = bm.radiusFromArea(bm.nextArea);
 	bm.drawGasket();
 	for (const d of bm.diskList) {
 		bm.drawBuffer(d);
@@ -1914,39 +1978,24 @@ bm.redraw = function() {
 	}
 }
 
-// Again we need to replace the prototype version of doOneDisk. 
-// Partly to get in the countPixels() routine. But also because
-// I wanted to allow s = 1 in this program, where the zeta series
-// is nonconvergent. We need to handle the case of zeta(s) -> infinity.
-// This also comes up in init().
 
-bm.doOneDisk = function() {
-	if (!isFinite(bm.zeta)) {
-		bm.state = "Exhausted";
-		bm.UIstateUpdate();
-		return false;		
-	}
-	const d = bm.newDisk();
-	if (!d) {
-		bm.state = "Jammed";
-		bm.UIstateUpdate();
-		return false;
-	}
-	bm.recordDisk(d);
+// replace the default display routine with one that redraws the 
+// entire sequence of disks, with bumpers shown. It also stops
+// the setInterval timer.
+
+bm.displayDisk = function(d) {
+	bm.stopTimer();
+	bm.state = "Idle";
+	bm.UIstateUpdate();
 	bm.redraw();
-	bm.areaCovered += bm.diskArea
-	bm.percentCovered = (bm.areaCovered / bm.boxArea) * 100;
 	bm.countPixels();
-	bm.diskCount++;
-	bm.countNumber.innerHTML = bm.diskCount;
-	bm.areaNumber.innerHTML = bm.percentCovered.toFixed(2) + "%";
+}
 
-	bm.k++;
-	bm.diskArea = bm.areaFromK(bm.k);
-	bm.diskRadius = bm.radiusFromArea(bm.diskArea);
-	bm.nextArea = bm.areaFromK(bm.k + 1);
-	bm.nextRadius = bm.radiusFromArea(bm.nextArea);
-	return true;
+// also replace the default gradient coloring with one that 
+// returns a constant
+
+bm.colorFn = function(q) {
+	return bm.diskColor;
 }
 
 bm.init = function() {
@@ -1964,7 +2013,7 @@ bm.init = function() {
 	MathJax.Hub.Queue(["Typeset", MathJax.Hub, bm.controls]);
 	bm.buildDiskDatabase();
 
-	if (isFinite(bm.zeta)) {
+	if (isFinite(bm.zeta)) {					// We allow s = 1 in this program, so zeta could be infinite.
 		bm.nextArea = bm.diskArea;
 		bm.nextRadius = bm.diskRadius;
 		bm.drawGasket();
@@ -2106,81 +2155,25 @@ gk.init = function() {
 gk.setUpCounters();
 gk.init();
 
-gk.doOneDisk = function() {
-	
-	if (gk.diskCount >= gk.maxDisks || gk.diskArea < gk.minDiskArea) {		// patience exhausted
-		gk.state = "Exhausted";
-		if (gk.runButton === "goStop") {
-			gk.stopTimer();
-		}
-		gk.UIstateUpdate();
-		gk.batchCount = 0;
-		return false;
-	}
-	
-	if (gk.batchCount >= gk.maxBatches) {			// declare the search a failure; no room for another disk
-		gk.state = "Jammed";
-		if (gk.runButton === "goStop") {
-			gk.stopTimer();
-		}
-		gk.UIstateUpdate();
-		gk.batchCount = 0;
-		return false;
-	}
-		
-	// We have not reached either of the search limits, so let's try another
-	// batch of attempts to place a new disk.	The var d will hold the result
-	// of the search: a disk object if we succeeded in finding a place, and
-	// otherwise false.
-	
-	gk.batchCount += 1;
-	const d = gk.newDisk();
-	
-	// If d == false, just bail out, and let this whole routine run again
-	// on the next timer tick.
-	
-	if (!d) {
-		return false;
-	}
-	
-	// If we've gotten this far, we have a disk and the disk has a home.
-	// So we record it in the database and draw it on the screen. Then
-	// update variables that keep track of the count of disks, and their
-	// total area, and display these results in the control panel.
-	
-	gk.recordDisk(d);										// success...
-	gk.drawDisk(d);
-	gk.diskCount++;
-	gk.diskArea = gk.areaFromRadius(d.r);
-	gk.areaCovered += gk.diskArea;
-	gk.percentCovered = gk.areaCovered / gk.boxArea * 100;
+
+// Specialize the default displayStats to fill in values for the
+// gasket statistics.
+
+gk.displayStats = function() {
 	gk.countNumber.innerHTML = gk.diskCount;
 	gk.areaNumber.innerHTML = gk.percentCovered.toFixed(2) + "%";
-	
 	gk.gasketArea -= gk.diskArea;
 	gk.gasketPerimeter += (gk.diskRadius * Math.PI * 2);
 	gk.gasketWidth = gk.gasketArea / gk.gasketPerimeter;
-	
-	// This is the point in the program where we are officially finished
-	// with one disk and ready to turn our attention to the next. We 
-	// increment the index k, then calculate the area, radius, and color
-	// of the next disk to be placed. And reset the batchCount.
-	
-	gk.k++;
-	gk.diskArea = gk.areaFromK(gk.k);
-	gk.diskRadius = gk.radiusFromArea(gk.diskArea);
-	gk.diskColor = gk.colorFn(gk.diskArea);
-	gk.batchCount = 0;
-
 	gk.dimensionlessWidth = gk.gasketWidth / (gk.diskRadius * 2);
 	gk.AgCounterText.innerHTML = `gasket area: ${gk.gasketArea.toFixed(2)}`;
 	gk.PgCounterText.innerHTML = `perimeter: ${gk.gasketPerimeter.toFixed(2)}`;
 	gk.WgCounterText.innerHTML = `width: ${gk.gasketWidth.toFixed(6)}`;
-	gk.DwCounterText.innerHTML = `dimensionless width: ${gk.dimensionlessWidth.toFixed(3)}`
-
-	return true;
+	gk.DwCounterText.innerHTML = `dimensionless width: ${gk.dimensionlessWidth.toFixed(3)}`;
 }
 
+	
+	
 	
 	
 
