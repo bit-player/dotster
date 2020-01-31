@@ -55,6 +55,48 @@
 {
 
 
+// Code below was written to test TeX processing times when
+// MathJax 3.0 was released. Logs elapsed time for three phases
+// of the workflow. The finding of interest is the large
+// performance cost of enabling assistive technologies. The
+// typesetting time goes from about 100 ms to more than 3000 ms.
+// But note this is only for the initial typesetting -- the
+// first time through the file. Subsequent calls to MathJax.typeset()
+// are also affected, but not in a way that causes any annoyance.
+// Without assistive tech, the math is reset in 20 to 30 ms.
+// Turning on the assistive aids increases this to 30 to 45 ms.
+// That's a big percentage increase, but it's still fast enough
+// that the delay is almost unnoticed.
+
+/*
+var start_of_execution = performance.now();
+console.log(`start_of_execution = ${start_of_execution}`);
+
+window.MathJax = {
+  startup: {
+    ready: () => {
+	    const mathjax_loaded = performance.now();
+      console.log(`mathjax_loaded = ${mathjax_loaded}`);
+      console.log(`load time = ${mathjax_loaded - start_of_execution}`);
+      MathJax.startup.defaultReady();
+      const mathjax_initialized = performance.now();
+      console.log(`mathjax_initialized = ${mathjax_initialized}`);
+      console.log(`initialize time = ${mathjax_initialized - mathjax_loaded}`);
+      MathJax.startup.promise.then(() => {
+	      let mathjax_typeset = performance.now();
+	      console.log(`mathjax_typeset = ${mathjax_typeset}`);
+	      console.log(`typesetting time = ${mathjax_typeset - mathjax_initialized}`);
+    	});
+  	}
+  }
+};
+*/
+
+
+
+
+
+
 // Check for browser ability to handle 'canvas' element. 
 // See https://modernizr.com/
 
@@ -151,6 +193,9 @@ function zetaBorwein(s) {
 // Shier's _Fractalize That_.
 
 function hurwitzZeta(s, a) {
+	if (s === 1.3 && a === 1.0) {
+		return 3.931948211865558;
+	}
 	let aInt = Math.floor(a),
 			aFrac = a - aInt,
 			sum = 0.0,
@@ -193,8 +238,6 @@ function injectStyles() {
 }
 
 injectStyles();
-
-
 
 
 
@@ -1223,6 +1266,14 @@ Dotster.prototype.nextClick = function(evt) {
 // to run again with the same inputs. And the call to this.init()
 // means that every program must have an .init() method.
 
+// Revision 2020-01: Converting from MathJax 2,7 to MathJax 3.0
+// required a change in how we call for resetting TeX elements
+// in the various control panels. Under the new regime, whenever
+// any one slider changes value, we reset all the TeX throughout
+// the entire web page. As a result we can use a single call (here
+// at the end of resetClick() rather than having separate calls
+// within each control panel.
+
 Dotster.prototype.resetClick = function(evt) {
 	this.state = "Idle";
 	this.ctx.clearRect(0, 0, this.boxSide, this.boxSide);
@@ -1235,6 +1286,8 @@ Dotster.prototype.resetClick = function(evt) {
 	this.areaNumber.innerHTML = "0.00%";
 	this.UIstateUpdate();
 	this.init();
+	MathJax.typesetClear();
+	MathJax.typeset();
 }
 
 
@@ -1282,7 +1335,7 @@ Dotster.prototype.resetClick = function(evt) {
 // Many of these math elements are changed after load, so we have
 // to wake up MathJAX for another pass over sections of the text.
 
-// TODO: Update to version 3.0 of MathJAX, which was just released.
+// DONE: Update to version 3.0 of MathJAX, 2020-01. 
 
 
 
@@ -1388,7 +1441,6 @@ fs.init = function() {
 	fs.countNumber.innerHTML = fs.diskCount;
 	fs.areaNumber.innerHTML = "0.00%";
 	fs.A_kFormula.innerHTML = `\\[A_k = ${fs.areaSlider.noUiSlider.get()}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, fs.A_kFormula]);									// wake up MathJAX
 	fs.diskArea = Number(fs.areaSlider.noUiSlider.get());
 	fs.diskRadius = fs.radiusFromArea(fs.diskArea);
 	fs.diskColor = fs.colorFn(fs.diskArea);
@@ -1466,7 +1518,6 @@ hm.init = function() {
 	hm.countNumber.innerHTML = hm.diskCount;
 	hm.areaNumber.innerHTML = "0.00%";
 	hm.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{${hm.initialDenominator} + k}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, hm.controls]);
 	hm.diskArea = hm.areaFromK(hm.k);
 	hm.diskRadius = hm.radiusFromArea(hm.diskArea);
 	hm.diskColor = hm.colorFn(hm.diskArea);
@@ -1531,7 +1582,6 @@ za.init = function() {
 	za.areaNumber.innerHTML = "0.00%";
 	za.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{k^{${za.s.toFixed(2)}}}\\]`;
 	za.A_boxFormula.innerHTML = "\\[A_{\\square} = 4\\]";
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, za.controls]);
 	za.buildDiskDatabase();
 }
 
@@ -1560,7 +1610,7 @@ zs.init = function() {
 	zs.countNumber.innerHTML = zs.diskCount;
 	zs.s = Number(zs.sSlider.noUiSlider.get());
 	
-	// where the scaing happens
+	// where the scaling happens
 	zs.zeta = zetaBorwein(zs.s);					// evaluate the zeta function at s
 	zs.boxArea = zs.zeta;									// set the box area to zeta(s)
 	zs.boxSide = Math.sqrt(zs.boxArea);   // and the side length accordingly
@@ -1568,7 +1618,6 @@ zs.init = function() {
 	
 	zs.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{k^{${zs.s.toFixed(2)}}}\\]`;
 	zs.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${zs.s.toFixed(2)}) = ${zs.zeta.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, zs.controls]);
 	zs.diskArea = zs.areaFromK(zs.k);
 	zs.diskRadius = zs.radiusFromArea(zs.diskArea);
 	zs.diskColor = zs.colorFn(zs.diskArea);
@@ -1658,7 +1707,6 @@ hw.init = function() {
 	hw.transformCoords();
 	hw.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{(${hw.a.toFixed(2)}+k)^{${hw.s.toFixed(2)}}}\\]`;
 	hw.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${hw.s.toFixed(2)}, ${hw.a.toFixed(2)}) = ${hw.zeta.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, hw.controls]);
 	hw.diskArea = hw.areaFromK(hw.initial_k);
 	hw.diskRadius = hw.radiusFromArea(hw.diskArea);
 	hw.diskColor = hw.colorFn(hw.diskArea);
@@ -1698,7 +1746,6 @@ d1.init = function() {
 	d1.transformCoords();
 	d1.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{k^{${d1.s.toFixed(2)}}}\\]`
 	d1.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${d1.s.toFixed(2)}) = ${d1.zeta.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, d1.controls]);
 	d1.diskArea = d1.areaFromK(d1.initial_k);
 	d1.diskRadius = d1.radiusFromArea(d1.diskArea);
 	d1.diskColor = d1.colorFn(d1.diskArea);
@@ -1859,16 +1906,16 @@ b1.colorFn = function(q) {
 }
 
 
-b1.resetClick = function(evt) {
-	b1.state = "Idle";
-	b1.ctx.clearRect(0, 0, b1.boxSide, b1.boxSide);
-	b1.buildDiskDatabase();
-	b1.areaCovered = 0;
-	b1.countNumber.innerHTML = b1.diskCount;
-	b1.areaNumber.innerHTML = "0.00%";
-	b1.UIstateUpdate();
-	b1.init();
-}
+// b1.resetClick = function(evt) {
+// 	b1.state = "Idle";
+// 	b1.ctx.clearRect(0, 0, b1.boxSide, b1.boxSide);
+// 	b1.buildDiskDatabase();
+// 	b1.areaCovered = 0;
+// 	b1.countNumber.innerHTML = b1.diskCount;
+// 	b1.areaNumber.innerHTML = "0.00%";
+// 	b1.UIstateUpdate();
+// 	b1.init();
+// }
 
 b1.init = function() {
 	b1.k = b1.initial_k;
@@ -1880,7 +1927,6 @@ b1.init = function() {
 	b1.transformCoords();
 	b1.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{k^{${b1.s.toFixed(2)}}}\\]`
 	b1.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${b1.s.toFixed(2)}) = ${b1.zeta.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, b1.controls]);	
 	b1.diskArea = b1.areaFromK(b1.k);
 	b1.diskRadius = b1.radiusFromArea(b1.diskArea);
 	b1.nextArea = b1.areaFromK(b1.k);
@@ -2010,7 +2056,6 @@ bm.init = function() {
 	bm.diskRadius = bm.radiusFromArea(bm.diskArea);
 	bm.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{k^{${bm.s.toFixed(2)}}}\\]`
 	bm.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${bm.s.toFixed(2)}) = ${isFinite(bm.zeta) ? bm.zeta.toFixed(2) : '\\infty'} \\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, bm.controls]);
 	bm.buildDiskDatabase();
 
 	if (isFinite(bm.zeta)) {					// We allow s = 1 in this program, so zeta could be infinite.
@@ -2183,8 +2228,8 @@ bH.init = function() {
 	bH.diskArea = bH.areaFromK(bH.initial_k);
 	bH.diskRadius = bH.radiusFromArea(bH.diskArea);
 	bH.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{(${bH.a.toFixed(2)}+k)^{${bH.s.toFixed(2)}}}\\]`;
-	bH.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${bH.s.toFixed(2)}, ${bH.a.toFixed(2)}) = ${bH.zeta.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, bH.controls]);
+	bH.A_boxFormula.innerHTML = 
+		`\\[A_{\\square} = \\zeta(${bH.s.toFixed(2)}, ${bH.a.toFixed(2)}) = ${isFinite(bH.zeta) ? bH.zeta.toFixed(2) : '\\infty'} \\]`;
 	bH.diskArea = bH.areaFromK(bH.initial_k);
 	bH.diskRadius = bH.radiusFromArea(bH.diskArea);
 	bH.buildDiskDatabase();
@@ -2302,7 +2347,6 @@ gk.init = function() {
 	gk.DwCounterText.innerHTML = `dimensionless width: ${gk.gasketWidth.toFixed(3)}`
 	gk.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{k^{${gk.s.toFixed(2)}}}\\]`;
 	gk.A_boxFormula.innerHTML = `\\[A_{\\square} = \\zeta(${gk.s.toFixed(2)}) = ${gk.zeta.toFixed(2)}\\]`;
-	MathJax.Hub.Typeset(gk.controls);
 	gk.diskArea = gk.areaFromK(gk.k);
 	gk.diskRadius = gk.radiusFromArea(gk.diskArea);
 	gk.buildDiskDatabase();
@@ -2400,7 +2444,6 @@ gm.init = function() {
 	gm.transformCoords();
 	gm.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{${gm.s.toFixed(4)}^k}\\]`
 	gm.A_boxFormula.innerHTML = `\\[A_{\\square} = \\frac{s}{s-1} = ${gm.geom.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, gm.controls]);
 	gm.diskArea = gm.areaFromK(gm.k);
 	gm.diskRadius = gm.radiusFromArea(gm.diskArea);
 	gm.diskColor = gm.colorFn(gm.diskArea);
@@ -2436,7 +2479,7 @@ g1.init = function() {
 	g1.transformCoords();
 	g1.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{${g1.s.toFixed(2)}^k}\\]`
 	g1.A_boxFormula.innerHTML = `\\[A_{\\square} = G(${g1.s.toFixed(2)}) = ${g1.geom.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, g1.controls]);
+// 	MathJax.Hub.Queue(["Typeset", MathJax.Hub, g1.controls]);
 	g1.diskArea = g1.areaFromK(g1.initial_k);
 	g1.diskRadius = g1.radiusFromArea(g1.diskArea);
 	g1.diskColor = g1.colorFn(g1.diskArea);
@@ -2493,7 +2536,6 @@ gd.init = function() {
 	gd.transformCoords();
 	gd.A_kFormula.innerHTML = `\\[A_k = \\frac{1}{${gd.s.toFixed(2)}^k}\\]`
 	gd.A_boxFormula.innerHTML = `\\[A_{\\square} = G(${gd.s.toFixed(2)}) = ${gd.geom.toFixed(2)}\\]`;
-	MathJax.Hub.Queue(["Typeset", MathJax.Hub, gd.controls]);
 	gd.diskArea = gd.areaFromK(gd.initial_k);
 	gd.diskRadius = gd.radiusFromArea(gd.diskArea);
 	gd.diskColor = gd.colorFn(gd.diskArea);
