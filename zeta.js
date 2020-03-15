@@ -1286,7 +1286,7 @@ Dotster.prototype.resetClick = function(evt) {
 	this.areaNumber.innerHTML = "0.00%";
 	this.UIstateUpdate();
 	this.init();
-	MathJax.typesetClear();
+// 	MathJax.typesetClear();  // needed with MathJax 3.0.0 but fixed in 3.0.1
 	MathJax.typeset();
 }
 
